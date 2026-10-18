@@ -5,34 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arduino RFID Kart Otomasyonu</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 340px; }
+        body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 360px; }
         .balance { font-size: 32px; color: #2e7d32; font-weight: bold; margin: 15px 0; }
         .status { padding: 8px; border-radius: 6px; font-size: 14px; margin-bottom: 15px; background: #fff3cd; color: #856404; }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
-        button:hover { background: #0056b3; }
+        
+        .btn-connect { background: #17a2b8; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-connect:hover { background: #138496; }
+
+        /* İşlem Paneli Butonları */
+        .action-panel { display: none; margin-top: 20px; gap: 10px; flex-direction: column; }
+        .btn-add { background: #28a745; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 6px; cursor: pointer; }
+        .btn-add:hover { background: #218838; }
+        .btn-sub { background: #dc3545; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 6px; cursor: pointer; }
+        .btn-sub:hover { background: #c82333; }
+
+        .info-box { text-align: left; background: #f8f9fa; padding: 12px; border-radius: 8px; margin-top: 15px; }
+        .info-box p { margin: 6px 0; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Yemekhane / Kart Sistemi</h2>
         <div id="connectionStatus" class="status">Arduino Bağlı Değil</div>
-        <button onclick="connectArduino()" style="background: #17a2b8;">Arduino'ya Bağlan</button>
+        <button class="btn-connect" onclick="connectArduino()">Arduino'ya Bağlan</button>
         
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
         
-        <p><strong>Okunan Kart ID:</strong> <span id="cardId">--</span></p>
-        <p><strong>Kullanıcı:</strong> <span id="userName">Kart Bekleniyor...</span></p>
+        <div class="info-box">
+            <p><strong>Müşteri / Kul. Kodu:</strong> <span id="userCode">--</span></p>
+            <p><strong>Kullanıcı Adı:</strong> <span id="userName">Kart Okutunuz...</span></p>
+            <p><strong>Kart ID:</strong> <span id="cardId">--</span></p>
+        </div>
+
         <div class="balance" id="bakiye">0 TL</div>
+
+        <!-- Kart Okutulunca Açılan İşlem Paneli -->
+        <div id="actionPanel" class="action-panel">
+            <button class="btn-add" onclick="bakiyeIslem(100)">+ 100 TL Yükle</button>
+            <button class="btn-sub" onclick="bakiyeIslem(-100)">- 100 TL Düş</button>
+        </div>
     </div>
 
     <script>
-        // Kendi kartını ve diğer tanımlı kartları buraya ekleyebilirsin
+        // Kullanıcı Veritabanı ve Kodları
         const users = {
-            "7A:05:30:A5": { name: "Furkan", balance: 200 },
-            "7A0530A5": { name: "Furkan", balance: 200 },
-            "1001": { name: "Ahmet Yılmaz", balance: 100 }
+            // Furkan (Kullanıcı Kodu: 001)
+            "7A:05:30:A5": { code: "001", name: "Furkan", balance: 200 },
+            "7A0530A5":    { code: "001", name: "Furkan", balance: 200 },
+
+            // Şevki (Kullanıcı Kodu: 002)
+            "36:FB:96:3F": { code: "002", name: "Şevki", balance: 150 },
+            "36FB963F":    { code: "002", name: "Şevki", balance: 150 }
         };
+
+        let activeCardId = null;
 
         async function connectArduino() {
             if ("serial" in navigator) {
@@ -56,9 +83,9 @@
                         buffer = lines.pop();
 
                         for (let line of lines) {
-                            let cleanId = line.trim();
+                            let cleanId = line.trim().toUpperCase();
                             if (cleanId.length > 0) {
-                                processCard(cleanId);
+                                selectCard(cleanId);
                             }
                         }
                     }
@@ -70,24 +97,47 @@
             }
         }
 
-        function processCard(cardId) {
+        // Kart Okutulduğunda Bilgileri Ekrana Getir ve Paneli Aç
+        function selectCard(cardId) {
+            activeCardId = cardId;
             document.getElementById('cardId').innerText = cardId;
-            
-            // Eğer kart veritabanında yoksa otomatik ekle
+
+            // Eğer kart sistemde yoksa otomatik yeni kullanıcı kodu ata
             if (!users[cardId]) {
-                users[cardId] = { name: "Yeni Kullanıcı (" + cardId + ")", balance: 150 };
+                const nextNum = String(Object.keys(users).length + 1).padStart(3, '0');
+                users[cardId] = { code: nextNum, name: "Yeni Kullanıcı (" + cardId + ")", balance: 100 };
             }
 
             let user = users[cardId];
+            document.getElementById('userCode').innerText = user.code;
             document.getElementById('userName').innerText = user.name;
+            document.getElementById('bakiye').innerText = user.balance + " TL";
 
-            // Bakiyeden 20 TL Biniş/Yemek Ücreti Düş
-            if (user.balance >= 20) {
-                user.balance -= 20;
-                document.getElementById('bakiye').innerText = user.balance + " TL";
+            // Buton Panelini Görünür Yap
+            document.getElementById('actionPanel').style.display = "flex";
+        }
+
+        // Butonlara Basılınca Bakiye Yükleme veya Düşme İşlemi
+        function bakiyeIslem(miktar) {
+            if (!activeCardId || !users[activeCardId]) {
+                alert("Lütfen önce bir kart okutun!");
+                return;
+            }
+
+            let user = users[activeCardId];
+
+            if (miktar < 0 && user.balance < Math.abs(miktar)) {
+                alert("Yetersiz Bakiye! Mevcut Bakiye: " + user.balance + " TL");
+                return;
+            }
+
+            user.balance += miktar;
+            document.getElementById('bakiye').innerText = user.balance + " TL";
+
+            if (miktar > 0) {
+                alert(user.name + " hesabına " + miktar + " TL yüklendi! Güncel Bakiye: " + user.balance + " TL");
             } else {
-                alert("Yetersiz Bakiye! Lütfen yükleme yapın.");
-                document.getElementById('bakiye').innerText = user.balance + " TL";
+                alert(user.name + " hesabından " + Math.abs(miktar) + " TL düşüldü! Güncel Bakiye: " + user.balance + " TL");
             }
         }
     </script>
