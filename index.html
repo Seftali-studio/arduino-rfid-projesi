@@ -6,7 +6,7 @@
     <title>Arduino RFID Kart Otomasyonu</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 320px; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 340px; }
         .balance { font-size: 32px; color: #2e7d32; font-weight: bold; margin: 15px 0; }
         .status { padding: 8px; border-radius: 6px; font-size: 14px; margin-bottom: 15px; background: #fff3cd; color: #856404; }
         button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
@@ -22,18 +22,17 @@
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
         
         <p><strong>Okunan Kart ID:</strong> <span id="cardId">--</span></p>
-        <p><strong>Kullanıcı:</strong> <span id="userName">Kart Okutunuz</span></p>
+        <p><strong>Kullanıcı:</strong> <span id="userName">Kart Bekleniyor...</span></p>
         <div class="balance" id="bakiye">0 TL</div>
     </div>
 
     <script>
-        // Örnek Kullanıcı Veritabanı
+        // Kendi kartını ve diğer tanımlı kartları buraya ekleyebilirsin
         const users = {
-            "A3F2128B": { name: "Ahmet Yılmaz", balance: 100 }, // Kendi kart ID'ni buraya yazabilirsin
-            "1001": { name: "Mehmet Demir", balance: 50 }
+            "7A:05:30:A5": { name: "Furkan", balance: 200 },
+            "7A0530A5": { name: "Furkan", balance: 200 },
+            "1001": { name: "Ahmet Yılmaz", balance: 100 }
         };
-
-        let currentCard = null;
 
         async function connectArduino() {
             if ("serial" in navigator) {
@@ -67,27 +66,28 @@
                     alert("Bağlantı Hatası: " + err);
                 }
             } else {
-                alert("Tarayıcınız Web Serial API desteklemiyor. Lütfen Chrome veya Edge kullanın.");
+                alert("Tarayıcınız Web Serial API desteklemiyor. Lütfen Google Chrome veya Microsoft Edge kullanın.");
             }
         }
 
         function processCard(cardId) {
             document.getElementById('cardId').innerText = cardId;
             
-            // Eğer kart sistemde tanımlı değilse varsayılan 100 TL ile oluşturalım
+            // Eğer kart veritabanında yoksa otomatik ekle
             if (!users[cardId]) {
-                users[cardId] = { name: "Yeni Kullanıcı (" + cardId + ")", balance: 100 };
+                users[cardId] = { name: "Yeni Kullanıcı (" + cardId + ")", balance: 150 };
             }
 
             let user = users[cardId];
             document.getElementById('userName').innerText = user.name;
 
-            // Bakiyeden 20 TL Düş
+            // Bakiyeden 20 TL Biniş/Yemek Ücreti Düş
             if (user.balance >= 20) {
                 user.balance -= 20;
                 document.getElementById('bakiye').innerText = user.balance + " TL";
             } else {
-                alert("Yetersiz Bakiye!");
+                alert("Yetersiz Bakiye! Lütfen yükleme yapın.");
+                document.getElementById('bakiye').innerText = user.balance + " TL";
             }
         }
     </script>
