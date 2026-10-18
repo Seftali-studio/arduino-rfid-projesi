@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kart / Yemekhane Otomasyonu</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 300px; }
+        .balance { font-size: 32px; color: #2e7d32; font-weight: bold; margin: 15px 0; }
+        button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Yemekhane / Kart Sistemi</h2>
+        <p><strong>Kart No:</strong> 1001</p>
+        <p><strong>Kullanıcı:</strong> Ahmet Yılmaz</p>
+        <div class="balance" id="bakiye">100 TL</div>
+        <button onclick="bakiyeDus(20)">Kart Bas (20 TL Düş)</button>
+        <button onclick="bakiyeYukle(50)" style="background: #28a745;">50 TL Bakiye Yükle</button>
+    </div>
+
+    <script>
+        let mevcutBakiye = 100;
+        function bakiyeDus(tutar) {
+            if(mevcutBakiye >= tutar) {
+                mevcutBakiye -= tutar;
+                document.getElementById('bakiye').innerText = mevcutBakiye + " TL";
+                alert("Kart Okutuldu! Kalan Bakiye: " + mevcutBakiye + " TL");
+            } else {
+                alert("Yersiz Bakiye!");
+            }
+        }
+        function bakiyeYukle(tutar) {
+            mevcutBakiye += tutar;
+            document.getElementById('bakiye').innerText = mevcutBakiye + " TL";
+            alert(tutar + " TL Yüklendi!");
+        }
+    </script>
+</body>
+</html>
