@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kart / Yemekhane Otomasyonu</title>
+    <title>Arduino RFID Kart Otomasyonu</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 300px; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; width: 320px; }
         .balance { font-size: 32px; color: #2e7d32; font-weight: bold; margin: 15px 0; }
+        .status { padding: 8px; border-radius: 6px; font-size: 14px; margin-bottom: 15px; background: #fff3cd; color: #856404; }
         button { background: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; }
         button:hover { background: #0056b3; }
     </style>
@@ -15,28 +16,79 @@
 <body>
     <div class="card">
         <h2>Yemekhane / Kart Sistemi</h2>
-        <p><strong>Kart No:</strong> 1001</p>
-        <p><strong>Kullanıcı:</strong> Ahmet Yılmaz</p>
-        <div class="balance" id="bakiye">100 TL</div>
-        <button onclick="bakiyeDus(20)">Kart Bas (20 TL Düş)</button>
-        <button onclick="bakiyeYukle(50)" style="background: #28a745;">50 TL Bakiye Yükle</button>
+        <div id="connectionStatus" class="status">Arduino Bağlı Değil</div>
+        <button onclick="connectArduino()" style="background: #17a2b8;">Arduino'ya Bağlan</button>
+        
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <p><strong>Okunan Kart ID:</strong> <span id="cardId">--</span></p>
+        <p><strong>Kullanıcı:</strong> <span id="userName">Kart Okutunuz</span></p>
+        <div class="balance" id="bakiye">0 TL</div>
     </div>
 
     <script>
-        let mevcutBakiye = 100;
-        function bakiyeDus(tutar) {
-            if(mevcutBakiye >= tutar) {
-                mevcutBakiye -= tutar;
-                document.getElementById('bakiye').innerText = mevcutBakiye + " TL";
-                alert("Kart Okutuldu! Kalan Bakiye: " + mevcutBakiye + " TL");
+        // Örnek Kullanıcı Veritabanı
+        const users = {
+            "A3F2128B": { name: "Ahmet Yılmaz", balance: 100 }, // Kendi kart ID'ni buraya yazabilirsin
+            "1001": { name: "Mehmet Demir", balance: 50 }
+        };
+
+        let currentCard = null;
+
+        async function connectArduino() {
+            if ("serial" in navigator) {
+                try {
+                    const port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 9600 });
+                    document.getElementById('connectionStatus').innerText = "Arduino Bağlandı! Kart Bekleniyor...";
+                    document.getElementById('connectionStatus').style.background = "#d4edda";
+                    document.getElementById('connectionStatus').style.color = "#155724";
+
+                    const textDecoder = new TextDecoderStream();
+                    const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                    const reader = textDecoder.readable.getReader();
+
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += value;
+                        let lines = buffer.split("\n");
+                        buffer = lines.pop();
+
+                        for (let line of lines) {
+                            let cleanId = line.trim();
+                            if (cleanId.length > 0) {
+                                processCard(cleanId);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    alert("Bağlantı Hatası: " + err);
+                }
             } else {
-                alert("Yersiz Bakiye!");
+                alert("Tarayıcınız Web Serial API desteklemiyor. Lütfen Chrome veya Edge kullanın.");
             }
         }
-        function bakiyeYukle(tutar) {
-            mevcutBakiye += tutar;
-            document.getElementById('bakiye').innerText = mevcutBakiye + " TL";
-            alert(tutar + " TL Yüklendi!");
+
+        function processCard(cardId) {
+            document.getElementById('cardId').innerText = cardId;
+            
+            // Eğer kart sistemde tanımlı değilse varsayılan 100 TL ile oluşturalım
+            if (!users[cardId]) {
+                users[cardId] = { name: "Yeni Kullanıcı (" + cardId + ")", balance: 100 };
+            }
+
+            let user = users[cardId];
+            document.getElementById('userName').innerText = user.name;
+
+            // Bakiyeden 20 TL Düş
+            if (user.balance >= 20) {
+                user.balance -= 20;
+                document.getElementById('bakiye').innerText = user.balance + " TL";
+            } else {
+                alert("Yetersiz Bakiye!");
+            }
         }
     </script>
 </body>
